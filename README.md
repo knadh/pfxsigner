@@ -20,7 +20,7 @@ In the server mode, pfxsigner exposes an HTTP API to which a PDF file and signat
 
 ```shell
 # Start the server
-./pfxsigner -pfx-file cert.pfx -props-file "props.json" server
+./pfxsigner -pfx-file cert.pfx -pfx-password password -props-file "props.json" server
 ```
 
 ```shell
@@ -28,6 +28,18 @@ In the server mode, pfxsigner exposes an HTTP API to which a PDF file and signat
 
 REQ=$(cat props.json.sample)
 curl -F "props=$REQ" -F 'file=@./test.pdf' -o './test-signed.pdf' localhost:8000/document
+```
+
+## Docker
+
+You can use the [official]() Docker image to run `pfxsigner`.
+
+**NOTE**: You'll need to mount `cert.pfx` and `props.json` from a directory available on host machine to a directory inside container. You can do that by passing `-v </path/on/host>:</path/on/container>` while launching the container.
+
+```shell
+# For example `./data` contains `cert.pfx` and `props.json`.
+export PFX_PASSWORD=mysecurepass
+docker run -it -p 8000:8000 -v "$PWD"/data:/data kailashnadh/pfxsigner:latest -pfx-file /data/cert.pfx  -pfx-password $PFX_PASSWORD -props-file /data/props.json server
 ```
 
 ### API

@@ -19,6 +19,8 @@ type httpResp struct {
 // initServer initializes CLI mode.
 func initServer(c *cli.Context) error {
 	r := chi.NewRouter()
+	r.Get("/", handleIndex)
+	r.Get("/health", handleHealthCheck)
 	r.Post("/document", handleDocument)
 
 	// HTTP Server.
@@ -34,6 +36,18 @@ func initServer(c *cli.Context) error {
 		logger.Fatalf("couldn't start server: %v", err)
 	}
 	return nil
+}
+
+// handleIndex is default index handler.
+func handleIndex(w http.ResponseWriter, r *http.Request) {
+	sendResponse(w, "Welcome to pfxsigner. Send a request to /document for document signing.")
+	return
+}
+
+// handleHealthCheck handles healthcheck request to check if service is available or not.
+func handleHealthCheck(w http.ResponseWriter, r *http.Request) {
+	sendResponse(w, "healthy")
+	return
 }
 
 // handleDocument handles an HTTP document signing request.

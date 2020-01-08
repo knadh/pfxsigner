@@ -11,9 +11,24 @@ before:
   hooks:
   - make build
 
-archive:
-  format: tar.gz
-  files:
+archives:
+  - format: tar.gz
+    files:
+      - props.json.sample
+      - README.md
+      - LICENSE
+
+dockers:
+  -
+    goos: linux
+    goarch: amd64
+    goarm: ''
+    binaries:
+    - pfxsigner
+    image_templates:
+    - "kailashnadh/pfxsigner:latest"
+    - "kailashnadh/pfxsigner:{{ .Tag }}"
+    skip_push: false
+    dockerfile: Dockerfile
+    extra_files:
     - props.json.sample
-    - README.md
-    - LICENSE
