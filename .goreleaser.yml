@@ -1,0 +1,19 @@
+# .goreleaser.yml
+builds:
+  - binary: pfxsigner
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+
+before:
+  hooks:
+  - make build
+
+archive:
+  format: tar.gz
+  files:
+    - props.json.sample
+    - README.md
+    - LICENSE
