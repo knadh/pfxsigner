@@ -65,13 +65,15 @@ func readJobsFromStdin(ch chan processor.Job) error {
 		if len(line) == 0 {
 			continue
 		}
-		if len(chunks) != 2 || len(chunks[0]) == 0 || len(chunks[1]) == 0 {
+		if len(chunks) != 3 || len(chunks[0]) == 0 || len(chunks[1]) == 0 || len(chunks[2]) == 0 {
 			logger.Printf("skipping invalid item: %s", line)
 			continue
 		}
 
-		ch <- processor.Job{InFile: chunks[0],
-			OutFile: chunks[1]}
+		ch <- processor.Job{
+			CertName: chunks[0],
+			InFile:   chunks[1],
+			OutFile:  chunks[2]}
 	}
 	if err := s.Err(); err != nil {
 		return err

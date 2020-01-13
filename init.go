@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"io/ioutil"
 	"log"
+	"strings"
 
 	"github.com/knadh/pfxsigner/internal/processor"
 	"github.com/unidoc/unipdf/v3/model"
@@ -32,9 +33,16 @@ func initApp(f cli.ActionFunc) cli.ActionFunc {
 		// Initialize global workers.
 		proc = processor.New(pr, logger)
 
-		// Load the PFX.
-		if err := proc.LoadPFX(c.GlobalString("pfx-file"), c.GlobalString("pfx-password")); err != nil {
-			log.Fatalf("error loading PFX: %v", err)
+		// Load one or more PFX certificates.
+		for _, p := range c.GlobalStringSlice("pfx") {
+			c := strings.Split(p, "|")
+			if len(c) != 3 {
+				log.Fatalf("invalid certificate entry '%s'", p)
+			}
+
+			if err := proc.LoadPFX(c[0], c[1], c[2]); err != nil {
+				log.Fatalf("error loading PFX: %v", err)
+			}
 		}
 
 		return f(c)

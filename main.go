@@ -29,8 +29,7 @@ func main() {
 		return nil
 	}
 	app.Flags = []cli.Flag{
-		cli.StringFlag{Name: "pfx-file", Value: "cert.pfx", Usage: "path to PFX file", TakesFile: true},
-		cli.StringFlag{Name: "pfx-password", Value: "", Usage: "PFX password"},
+		cli.StringSliceFlag{Name: "pfx", Value: nil, Usage: "PFX files. Can be specified multiple times. eg: mypfx|/path/to/cert.pfx|pfxpassword"},
 		cli.StringFlag{Name: "password", Value: "", Usage: "nest password"},
 		cli.StringFlag{Name: "props-file", Value: "props.json", Usage: "path to the JSON file with default signature properties", TakesFile: true},
 	}

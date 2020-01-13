@@ -1,8 +1,10 @@
 # pfxsigner
-pfxsigner is a utility (CLI) and an HTTP server for digitally signing PDFs with signatures loaded from PFX (PKCS #12) certificates.
+pfxsigner is a utility (CLI) and an HTTP server for digitally signing PDFs with signatures loaded from PFX (PKCS #12) certificates. It can load multiple named certificates from PFX files and sign PDFs with them.
 
 ## Configuration
 The signature properties are recorded in a JSON file. See `props.json.sample`.
+
+Multiple PFX files can be loaded by specifying the `-pfx certname|/cert/path.pfx|certpassword` param multiple times.
 
 ## CLI
 The CLI mode supports multi-threaded bulk-signing of PDFs.
@@ -10,9 +12,9 @@ The CLI mode supports multi-threaded bulk-signing of PDFs.
 ```shell
 # Pipe list of documents to convert to stdin. Each line should be in the format src-doc.pdf|signed-doc.pdf
 # eg:
-# a.pdf|a-signed.pdf
-# b.pdf|b-signed.pdf
-echo "in.pdf|out.pdf" | ./pfxsigner -pfx-file cert.pfx -props-file "props.json.sample" cli -workers 4
+# mycert|a.pdf|a-signed.pdf
+# mycert|b.pdf|b-signed.pdf
+echo "in.pdf|out.pdf" | ./pfxsigner -pfx "mycert|/path/cert.pfx|certpass" -props-file "props.json.sample" cli -workers 4
 ```
 
 ## Server
@@ -20,7 +22,7 @@ In the server mode, pfxsigner exposes an HTTP API to which a PDF file and signat
 
 ```shell
 # Start the server
-./pfxsigner -pfx-file cert.pfx -pfx-password password -props-file "props.json" server
+./pfxsigner -pfx "mycert|/path/cert.pfx|certpass" -props-file "props.json" server
 ```
 
 ```shell

@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -59,6 +60,7 @@ type SignProps struct {
 // Job represents a queued doc sign job. This is used in bulk processing
 // utility mode.
 type Job struct {
+	CertName string
 	InFile   string
 	OutFile  string
 	Password []byte
@@ -76,17 +78,24 @@ type Processor struct {
 	Wg    *sync.WaitGroup
 
 	// PFX that's loaded.
-	privKey *rsa.PrivateKey
-	cert    *x509.Certificate
+	certs map[string]*Certificate
 
 	stats  Stats
 	mut    sync.Mutex
 	logger *log.Logger
 }
 
+// Certificate represents a x509 certificate and its key loaded
+// from a PFX.
+type Certificate struct {
+	PrivKey *rsa.PrivateKey
+	Cert    *x509.Certificate
+}
+
 // New returns a new instance of Processor.
 func New(def SignProps, l *log.Logger) *Processor {
 	return &Processor{
+		certs: make(map[string]*Certificate),
 		props: def,
 		Wg:    &sync.WaitGroup{},
 		stats: Stats{
@@ -105,6 +114,13 @@ func (p *Processor) Listen(q chan Job) {
 		p.mut.Lock()
 		p.stats.JobsFailed++
 		p.mut.Unlock()
+
+		// Get the certificate.
+		cert, ok := p.certs[j.CertName]
+		if !ok {
+			p.logger.Printf("unknown certificate '%s'", j.CertName)
+			continue
+		}
 
 		// Open the PDF for processing.
 		f, err := os.Open(j.InFile)
@@ -143,7 +159,7 @@ func (p *Processor) Listen(q chan Job) {
 		}
 
 		// Sign the PDF.
-		ap, err := p.signPDF(p.props, rd)
+		ap, err := p.signPDF(cert, p.props, rd)
 		if err != nil {
 			p.logger.Printf("error signing PDF %s: %v", j.InFile, err)
 			continue
@@ -174,7 +190,12 @@ func (p *Processor) Listen(q chan Job) {
 }
 
 // ProcessDoc takes a document and signs it (with optional password protection).
-func (p *Processor) ProcessDoc(pr SignProps, password string, b io.ReadSeeker) ([]byte, error) {
+func (p *Processor) ProcessDoc(certName string, pr SignProps, password string, b io.ReadSeeker) ([]byte, error) {
+	cert, ok := p.certs[certName]
+	if !ok {
+		return nil, fmt.Errorf("unknown certificate '%s'", certName)
+	}
+
 	rd, err := model.NewPdfReader(b)
 	if err != nil {
 		p.logger.Printf("error opening PDF reader: %v", err)
@@ -204,7 +225,7 @@ func (p *Processor) ProcessDoc(pr SignProps, password string, b io.ReadSeeker) (
 	}
 
 	// Sign the PDF.
-	ap, err := p.signPDF(pr, rd)
+	ap, err := p.signPDF(cert, pr, rd)
 	if err != nil {
 		p.logger.Printf("error signing PDF after locking: %v", err)
 		return nil, errors.New("error signing PDF after locking")
@@ -229,19 +250,25 @@ func (p *Processor) GetProps() SignProps {
 }
 
 // LoadPFX loads a PFX key and certificate.
-func (p *Processor) LoadPFX(pfxPath, password string) error {
+func (p *Processor) LoadPFX(name, path, password string) error {
+	if _, ok := p.certs[name]; ok {
+		return fmt.Errorf("the name '%s' is already loaded")
+	}
+
 	// Get private key and X509 certificate from the P12 file.
-	pfxData, err := ioutil.ReadFile(pfxPath)
+	pfxData, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
 
-	priv, cert, _, err := pkcs12.DecodeChain(pfxData, password)
+	priv, c, _, err := pkcs12.DecodeChain(pfxData, password)
 	if err != nil {
 		log.Fatalf("decode failed: %v", err)
 	}
-	p.privKey = priv.(*rsa.PrivateKey)
-	p.cert = cert
+	p.certs[name] = &Certificate{
+		Cert:    c,
+		PrivKey: priv.(*rsa.PrivateKey),
+	}
 	return nil
 }
 
@@ -295,7 +322,7 @@ func (p *Processor) lockPDF(rd *model.PdfReader, password []byte) (*bytes.Reader
 }
 
 // signPDF signs a PDF.
-func (p *Processor) signPDF(pr SignProps, rd *model.PdfReader) (*model.PdfAppender, error) {
+func (p *Processor) signPDF(cert *Certificate, pr SignProps, rd *model.PdfReader) (*model.PdfAppender, error) {
 	// Create appender.
 	ap, err := model.NewPdfAppender(rd)
 	if err != nil {
@@ -303,7 +330,7 @@ func (p *Processor) signPDF(pr SignProps, rd *model.PdfReader) (*model.PdfAppend
 	}
 
 	// Create signature handler.
-	h, err := sighandler.NewAdobePKCS7Detached(p.privKey, p.cert)
+	h, err := sighandler.NewAdobePKCS7Detached(cert.PrivKey, cert.Cert)
 	if err != nil {
 		return nil, err
 	}

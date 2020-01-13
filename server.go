@@ -21,7 +21,7 @@ func initServer(c *cli.Context) error {
 	r := chi.NewRouter()
 	r.Get("/", handleIndex)
 	r.Get("/health", handleHealthCheck)
-	r.Post("/document", handleDocument)
+	r.Post("/sign/{certName}", handleSignDocument)
 
 	// HTTP Server.
 	srv := &http.Server{
@@ -50,13 +50,14 @@ func handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-// handleDocument handles an HTTP document signing request.
-func handleDocument(w http.ResponseWriter, r *http.Request) {
+// handleSignDocument handles an HTTP document signing request.
+func handleSignDocument(w http.ResponseWriter, r *http.Request) {
 	// Read the JSON request payload from the 'request' field.
 	// If it's empty, use the default props.
 	var (
-		props processor.SignProps
-		reqB  = []byte(r.FormValue("props"))
+		props    processor.SignProps
+		reqB     = []byte(r.FormValue("props"))
+		certName = chi.URLParam(r, "certName")
 	)
 
 	if len(reqB) > 0 {
@@ -81,10 +82,10 @@ func handleDocument(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Sign the document.
-	out, err := proc.ProcessDoc(props, "", file)
+	out, err := proc.ProcessDoc(certName, props, "", file)
 	if err != nil {
-		logger.Printf("error processing PDF: %v", err)
-		sendErrorResponse(w, "Error processing document.",
+		logger.Printf("error processing document: %v", err)
+		sendErrorResponse(w, fmt.Sprintf("Error processing document: %v", err),
 			http.StatusInternalServerError, nil)
 		return
 	}
