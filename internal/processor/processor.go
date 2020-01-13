@@ -39,10 +39,11 @@ type SignStyle struct {
 
 // SignCoords holds the signature annotation co-ordinates.
 type SignCoords struct {
-	X1 float64 `json:"x1"`
-	X2 float64 `json:"x2"`
-	Y1 float64 `json:"y1"`
-	Y2 float64 `json:"y2"`
+	Pages []int   `json:"pages"`
+	X1    float64 `json:"x1"`
+	X2    float64 `json:"x2"`
+	Y1    float64 `json:"y1"`
+	Y2    float64 `json:"y2"`
 }
 
 // SignProps represents signature properties that are required to do
@@ -54,7 +55,7 @@ type SignProps struct {
 
 	Annotations []map[string]string `json:"annotations"`
 	Style       SignStyle           `json:"style"`
-	Coords      SignCoords          `json:"coords"`
+	Coords      []SignCoords        `json:"coords"`
 }
 
 // Job represents a queued doc sign job. This is used in bulk processing
@@ -354,20 +355,25 @@ func (p *Processor) signPDF(cert *Certificate, pr SignProps, rd *model.PdfReader
 		}
 	}
 
-	// Create signature field and appearance.
-	opts := annotator.NewSignatureFieldOpts()
-	opts.FontSize = pr.Style.FontSize
-	opts.TextColor = &pr.Style.FontColorRGBA
-	opts.FillColor = &pr.Style.BgColorRGBA
-	opts.BorderColor = &pr.Style.BorderColorRGBA
-	opts.BorderSize = pr.Style.BorderSize
-	opts.Rect = []float64{pr.Coords.X1, pr.Coords.X2, pr.Coords.Y1, pr.Coords.Y1}
-	opts.AutoSize = pr.Style.AutoSize
-	field, err := annotator.NewSignatureField(sig, lines, opts)
-	field.T = core.MakeString("")
+	// Go through each set of coordinates and within that, each page number.
+	for _, c := range pr.Coords {
+		// Create signature field and appearance.
+		opts := annotator.NewSignatureFieldOpts()
+		opts.FontSize = pr.Style.FontSize
+		opts.TextColor = &pr.Style.FontColorRGBA
+		opts.FillColor = &pr.Style.BgColorRGBA
+		opts.BorderColor = &pr.Style.BorderColorRGBA
+		opts.BorderSize = pr.Style.BorderSize
+		opts.AutoSize = pr.Style.AutoSize
+		opts.Rect = []float64{c.X1, c.Y1, c.X2, c.Y2}
 
-	if err = ap.Sign(1, field); err != nil {
-		return nil, err
+		field, err := annotator.NewSignatureField(sig, lines, opts)
+		field.T = core.MakeString("")
+		for _, p := range c.Pages {
+			if err = ap.Sign(p, field); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	return ap, nil
