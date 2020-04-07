@@ -253,7 +253,7 @@ func (p *Processor) GetProps() SignProps {
 // LoadPFX loads a PFX key and certificate.
 func (p *Processor) LoadPFX(name, path, password string) error {
 	if _, ok := p.certs[name]; ok {
-		return fmt.Errorf("the name '%s' is already loaded")
+		return fmt.Errorf("the name '%s' is already loaded", name)
 	}
 
 	// Get private key and X509 certificate from the P12 file.
