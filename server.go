@@ -82,10 +82,10 @@ func handleSignDocument(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Sign the document.
-	out, err := proc.ProcessDoc(certName, props, "", file)
+	out, err := proc.ProcessDoc(certName, props, []byte(""), file)
 	if err != nil {
 		logger.Printf("error processing document: %v", err)
-		sendErrorResponse(w, fmt.Sprintf("Error processing document: %v", err),
+		sendErrorResponse(w, fmt.Sprintf("Error processing document"),
 			http.StatusInternalServerError, nil)
 		return
 	}
