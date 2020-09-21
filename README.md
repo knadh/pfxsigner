@@ -1,3 +1,5 @@
+<a href="https://zerodha.tech"><img src="https://zerodha.tech/static/images/github-badge.svg" align="right" /></a>
+
 # pfxsigner
 pfxsigner is a utility (CLI) and an HTTP server for digitally signing PDFs with signatures loaded from PFX (PKCS #12) certificates. It can load multiple named certificates from PFX files and sign PDFs with them.
 
