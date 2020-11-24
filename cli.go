@@ -75,8 +75,5 @@ func readJobsFromStdin(ch chan processor.Job) error {
 			InFile:   chunks[1],
 			OutFile:  chunks[2]}
 	}
-	if err := s.Err(); err != nil {
-		return err
-	}
-	return nil
+	return s.Err()
 }

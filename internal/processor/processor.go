@@ -116,13 +116,6 @@ func (p *Processor) Listen(q chan Job) {
 		p.stats.JobsFailed++
 		p.mut.Unlock()
 
-		// Get the certificate.
-		cert, ok := p.certs[j.CertName]
-		if !ok {
-			p.logger.Printf("unknown certificate '%s'", j.CertName)
-			continue
-		}
-
 		// Open the PDF for processing.
 		f, err := os.Open(j.InFile)
 		if err != nil {
@@ -131,47 +124,14 @@ func (p *Processor) Listen(q chan Job) {
 		}
 		defer f.Close()
 
-		rd, err := model.NewPdfReader(f)
+		out, err := p.ProcessDoc(j.CertName, p.props, j.Password, f)
 		if err != nil {
-			p.logger.Printf("error opening PDF %s: %v", j.InFile, err)
+			p.logger.Printf("error processing to sign PDF %s: %v", j.InFile, err)
 			continue
 		}
-
-		// Password protect the PDF.
-		if len(j.Password) > 0 {
-			// Password protect.
-			b, err := p.lockPDF(rd, j.Password)
-			if err != nil {
-				p.logger.Printf("error locking PDF with password: %s", j.InFile)
-				continue
-			}
-
-			// Re-read the PDF and unlock it to sign.
-			r, err := model.NewPdfReader(b)
-			if err != nil {
-				p.logger.Printf("error re-opening PDF after locking %s: %v", j.InFile, err)
-				continue
-			}
-			if ok, err := r.Decrypt(j.Password); !ok || err != nil {
-				p.logger.Printf("error re-reading PDF after locking %s: %v", j.InFile, err)
-				continue
-			}
-			rd = r
-		}
-
-		// Sign the PDF.
-		ap, err := p.signPDF(cert, p.props, rd)
-		if err != nil {
-			p.logger.Printf("error signing PDF %s: %v", j.InFile, err)
-			continue
-		}
-
-		// Get the signed PDF buffer.
-		out := bytes.NewBuffer(nil)
-		ap.Write(out)
 
 		// Write the output to a file.
-		if err := ioutil.WriteFile(j.OutFile, out.Bytes(), 0644); err != nil {
+		if err := ioutil.WriteFile(j.OutFile, out, 0644); err != nil {
 			p.logger.Printf("error writing PDF %s to %s", j.InFile, j.OutFile)
 			continue
 		}
@@ -191,12 +151,11 @@ func (p *Processor) Listen(q chan Job) {
 }
 
 // ProcessDoc takes a document and signs it (with optional password protection).
-func (p *Processor) ProcessDoc(certName string, pr SignProps, password string, b io.ReadSeeker) ([]byte, error) {
+func (p *Processor) ProcessDoc(certName string, pr SignProps, password []byte, b io.ReadSeeker) ([]byte, error) {
 	cert, ok := p.certs[certName]
 	if !ok {
 		return nil, fmt.Errorf("unknown certificate '%s'", certName)
 	}
-
 	rd, err := model.NewPdfReader(b)
 	if err != nil {
 		p.logger.Printf("error opening PDF reader: %v", err)
@@ -206,7 +165,7 @@ func (p *Processor) ProcessDoc(certName string, pr SignProps, password string, b
 	// Password protect the PDF.
 	if len(password) > 0 {
 		// Password protect.
-		b, err := p.lockPDF(rd, []byte(password))
+		b, err := p.lockPDF(rd, password)
 		if err != nil {
 			p.logger.Printf("error locking PDF with password: %v", err)
 			return nil, errors.New("error locking PDF with password")
@@ -218,7 +177,7 @@ func (p *Processor) ProcessDoc(certName string, pr SignProps, password string, b
 			p.logger.Printf("error re-opening PDF after locking: %v", err)
 			return nil, errors.New("error re-opening PDF after locking")
 		}
-		if ok, err := r.Decrypt([]byte(password)); !ok || err != nil {
+		if ok, err := r.Decrypt(password); !ok || err != nil {
 			p.logger.Printf("error re-reading PDF after locking: %v", err)
 			return nil, errors.New("error re-reading PDF after locking")
 		}
@@ -253,7 +212,7 @@ func (p *Processor) GetProps() SignProps {
 // LoadPFX loads a PFX key and certificate.
 func (p *Processor) LoadPFX(name, path, password string) error {
 	if _, ok := p.certs[name]; ok {
-		return fmt.Errorf("the name '%s' is already loaded")
+		return fmt.Errorf("the name '%s' is already loaded", name)
 	}
 
 	// Get private key and X509 certificate from the P12 file.
