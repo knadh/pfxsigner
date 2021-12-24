@@ -16,7 +16,7 @@ The CLI mode supports multi-threaded bulk-signing of PDFs.
 # eg:
 # mycert|a.pdf|a-signed.pdf
 # mycert|b.pdf|b-signed.pdf
-echo "in.pdf|out.pdf" | ./pfxsigner -pfx "mycert|/path/cert.pfx|certpass" -props-file "props.json.sample" cli -workers 4
+echo "mycert|in.pdf|out.pdf" | ./pfxsigner -pfx "mycert|/path/cert.pfx|certpass" -props-file "props.json.sample" cli -workers 4
 ```
 
 ## Server
